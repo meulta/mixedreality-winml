@@ -9,8 +9,6 @@ using Windows.Graphics.Imaging;
 using Windows.Storage.Streams;
 using System.Diagnostics;
 
-// Image_Reco
-
 public sealed class Image_RecoModelInput
 {
     public VideoFrame data { get; set; }
@@ -50,14 +48,6 @@ public sealed class Image_RecoModel
         return model;
     }
 
-    public async Task<Image_RecoModelOutput> EvaluateAsync(StorageFile inputFile)
-    {
-        using (VideoFrame inputFrame = await this.ConvertFileToVideoFrameAsync(inputFile))
-        {
-            return await EvaluateAsync(inputFrame);
-        }
-    }
-
     public async Task<Image_RecoModelOutput> EvaluateAsync(VideoFrame frame)
     {
         Image_RecoModelOutput output = new Image_RecoModelOutput();
@@ -71,22 +61,6 @@ public sealed class Image_RecoModel
         LearningModelEvaluationResultPreview evalResult = await learningModel.EvaluateAsync(binding, string.Empty);
 
         return output;
-    }
-
-    private async Task<VideoFrame> ConvertFileToVideoFrameAsync(StorageFile file)
-    {
-        SoftwareBitmap softwareBitmap;
-        using (IRandomAccessStream stream = await file.OpenAsync(FileAccessMode.Read))
-        {
-            // Create the decoder from the stream 
-            BitmapDecoder decoder = await BitmapDecoder.CreateAsync(stream);
-
-            // Get the SoftwareBitmap representation of the file 
-            softwareBitmap = await decoder.GetSoftwareBitmapAsync();
-            softwareBitmap = SoftwareBitmap.Convert(softwareBitmap, BitmapPixelFormat.Bgra8, BitmapAlphaMode.Ignore);
-        }
-
-        return VideoFrame.CreateWithSoftwareBitmap(softwareBitmap);
     }
 }
 #endif

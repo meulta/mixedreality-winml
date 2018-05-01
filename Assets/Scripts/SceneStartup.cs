@@ -23,7 +23,6 @@ public class SceneStartup : MonoBehaviour
     Dictionary<string, System.Action> keywords;
     public GameObject Label;
     private TextMesh LabelText;
-    KeywordRecognizer keywordRecognizer;
     DateTime lastPrediction;
     TimeSpan predictEvery = TimeSpan.FromMilliseconds(500);
     string textToDisplay;
@@ -38,28 +37,11 @@ public class SceneStartup : MonoBehaviour
     {
         LabelText = Label.GetComponent<TextMesh>();
 
-        keywords = new Dictionary<string, Action>();
-        keywords.Add("scan", () =>
-        {
-            LabelText.text = "Scanning...";
-            Predict();
-        });
-        keywordRecognizer = new KeywordRecognizer(keywords.Keys.ToArray());
-        keywordRecognizer.OnPhraseRecognized += KeywordRecognizer_OnPhraseRecognized;
-        keywordRecognizer.Start();
-
 #if UNITY_WSA && !UNITY_EDITOR
         CreateMediaCapture();
-#endif
-
         InitializeModel();
-    }
-
-    public async void InitializeModel()
-    {
-#if UNITY_WSA && !UNITY_EDITOR
-        StorageFile imageRecoModelFile = await StorageFile.GetFileFromApplicationUriAsync(new Uri($"ms-appx:///Assets/image_recognition.onnx"));
-        imageRecoModel = await Image_RecoModel.CreateImage_RecoModel(imageRecoModelFile);
+#else
+        DisplayText("Does not work in player.");
 #endif
     }
 
@@ -69,41 +51,21 @@ public class SceneStartup : MonoBehaviour
         textToDisplayChanged = true;
     }
 
-    public async void Predict()
-    {
 #if UNITY_WSA && !UNITY_EDITOR
-        StorageFile file = await GetPreviewFrame();
-        Image_RecoModelOutput prediction = await imageRecoModel.EvaluateAsync(file);
-        LabelText.text = prediction.classLabel[0];
-
-        keywordRecognizer.Stop();
-        keywordRecognizer.Start();
-#endif
+    public async void InitializeModel()
+    {
+        StorageFile imageRecoModelFile = await StorageFile.GetFileFromApplicationUriAsync(new Uri($"ms-appx:///Assets/image_recognition.onnx"));
+        imageRecoModel = await Image_RecoModel.CreateImage_RecoModel(imageRecoModelFile);
     }
 
-    private void KeywordRecognizer_OnPhraseRecognized(PhraseRecognizedEventArgs args)
-    {
-        Action keywordAction;
-        if (keywords.TryGetValue(args.text, out keywordAction))
-        {
-            keywordAction.Invoke();
-        }
-    }
-
-#if UNITY_WSA && !UNITY_EDITOR
     public async void CreateMediaCapture()
     {
         MediaCapture = new MediaCapture();
-        MediaCapture.Failed += MediaCapture_Failed;
         MediaCaptureInitializationSettings settings = new MediaCaptureInitializationSettings();
         settings.StreamingCaptureMode = StreamingCaptureMode.Video;
         await MediaCapture.InitializeAsync(settings);
 
         CreateFrameReader();
-    }
-
-    private void MediaCapture_Failed(MediaCapture sender, MediaCaptureFailedEventArgs errorEventArgs)
-    {
     }
 
     private async void CreateFrameReader()
@@ -138,14 +100,6 @@ public class SceneStartup : MonoBehaviour
 
         }).FirstOrDefault();
 
-        //if (preferredFormat == null)
-        //{
-        //    // Our desired format is not supported
-        //    return;
-        //}
-
-        //await colorFrameSource.SetFormatAsync(preferredFormat);
-
         var mediaFrameReader = await MediaCapture.CreateFrameReaderAsync(colorFrameSource);
         mediaFrameReader.FrameArrived += MediaFrameReader_FrameArrived; ;
         await mediaFrameReader.StartAsync();
@@ -156,48 +110,14 @@ public class SceneStartup : MonoBehaviour
         var now = DateTime.Now;
         if (lastPrediction == null || now.Subtract(lastPrediction) > predictEvery)
         {
-            Stopwatch videosw = new Stopwatch();
-            videosw.Start();
             var frameReference = sender.TryAcquireLatestFrame();
             var videoFrame = frameReference.VideoMediaFrame.GetVideoFrame();
-            videosw.Stop();
-
-            Stopwatch predictsw = new Stopwatch();
-            predictsw.Start();
             Image_RecoModelOutput prediction = await imageRecoModel.EvaluateAsync(videoFrame);
-            predictsw.Stop();
-
 
             DisplayText(prediction.classLabel[0]);
 
             lastPrediction = now;
         }
-    }
-
-    private async Task<StorageFile> GetPreviewFrame()
-    {
-        var myPictures = await StorageLibrary.GetLibraryAsync(Windows.Storage.KnownLibraryId.Pictures);
-        StorageFile file = await myPictures.SaveFolder.CreateFileAsync("photo.jpg", CreationCollisionOption.GenerateUniqueName);
-
-        using (var captureStream = new InMemoryRandomAccessStream())
-        {
-            await MediaCapture.CapturePhotoToStreamAsync(ImageEncodingProperties.CreateJpeg(), captureStream);
-
-            using (var fileStream = await file.OpenAsync(FileAccessMode.ReadWrite))
-            {
-                var decoder = await BitmapDecoder.CreateAsync(captureStream);
-                var encoder = await BitmapEncoder.CreateForTranscodingAsync(fileStream, decoder);
-
-                var properties = new BitmapPropertySet {
-            { "System.Photo.Orientation", new BitmapTypedValue(PhotoOrientation.Normal, PropertyType.UInt16) }
-        };
-                await encoder.BitmapProperties.SetPropertiesAsync(properties);
-
-                await encoder.FlushAsync();
-            }
-        }
-
-        return file;
     }
 #endif
 
