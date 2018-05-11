@@ -1,21 +1,13 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
-using UnityEngine.Windows.Speech;
-using Windows.Media;
 
 #if UNITY_WSA && !UNITY_EDITOR
 using Windows.Storage;
-using Windows.Graphics.Imaging;
 using Windows.Media.Capture;
 using Windows.Media.MediaProperties;
-using Windows.Storage.Streams;
-using Windows.Storage.FileProperties;
-using Windows.Foundation;
 using Windows.Media.Capture.Frames;
-using System.Diagnostics;
 #endif
 
 public class SceneStartup : MonoBehaviour

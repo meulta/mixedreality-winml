@@ -1,3 +1,4 @@
+#if UNITY_WSA && !UNITY_EDITOR
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -53,9 +54,9 @@ public sealed class Image_RecoModel
         }
 
         var d = input.data.Direct3DSurface.Description;
-        Debug.WriteLine($"w: {d.Width} h: {d.Height} f: {d.Format}");
         binding.Bind("data", input.data);
         LearningModelEvaluationResultPreview evalResult = await learningModel.EvaluateAsync(binding, string.Empty);
         return output;
     }
 }
+#endif
