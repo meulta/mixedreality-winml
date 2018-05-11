@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Windows.Speech;
+using Windows.Media;
 
 #if UNITY_WSA && !UNITY_EDITOR
 using Windows.Storage;
@@ -19,12 +20,9 @@ using System.Diagnostics;
 
 public class SceneStartup : MonoBehaviour
 {
-
-    Dictionary<string, System.Action> keywords;
     public GameObject Label;
     private TextMesh LabelText;
-    DateTime lastPrediction;
-    TimeSpan predictEvery = TimeSpan.FromMilliseconds(500);
+    TimeSpan predictEvery = TimeSpan.FromMilliseconds(50);
     string textToDisplay;
     bool textToDisplayChanged;
 
@@ -54,7 +52,7 @@ public class SceneStartup : MonoBehaviour
 #if UNITY_WSA && !UNITY_EDITOR
     public async void InitializeModel()
     {
-        StorageFile imageRecoModelFile = await StorageFile.GetFileFromApplicationUriAsync(new Uri($"ms-appx:///Assets/image_recognition.onnx"));
+        StorageFile imageRecoModelFile = await StorageFile.GetFileFromApplicationUriAsync(new Uri($"ms-appx:///Assets/model.onnx"));
         imageRecoModel = await Image_RecoModel.CreateImage_RecoModel(imageRecoModelFile);
     }
 
@@ -101,23 +99,52 @@ public class SceneStartup : MonoBehaviour
         }).FirstOrDefault();
 
         var mediaFrameReader = await MediaCapture.CreateFrameReaderAsync(colorFrameSource);
-        mediaFrameReader.FrameArrived += MediaFrameReader_FrameArrived; ;
         await mediaFrameReader.StartAsync();
+        StartPullFrames(mediaFrameReader);
     }
 
-    private async void MediaFrameReader_FrameArrived(MediaFrameReader sender, MediaFrameArrivedEventArgs args)
+    private void StartPullFrames(MediaFrameReader sender)
     {
-        var now = DateTime.Now;
-        if (lastPrediction == null || now.Subtract(lastPrediction) > predictEvery)
+        Task.Run(async () =>
         {
-            var frameReference = sender.TryAcquireLatestFrame();
-            var videoFrame = frameReference.VideoMediaFrame.GetVideoFrame();
-            Image_RecoModelOutput prediction = await imageRecoModel.EvaluateAsync(videoFrame);
+            for (;;)
+            {
+                var frameReference = sender.TryAcquireLatestFrame();
+                var videoFrame = frameReference?.VideoMediaFrame?.GetVideoFrame();
+                if (videoFrame == null)
+                {
+                    continue; //ignoring frame
+                }
+                var input = new Image_RecoModelInput();
 
-            DisplayText(prediction.classLabel[0]);
+                input.data = videoFrame;
+                if(videoFrame.Direct3DSurface == null)
+                {
+                    continue; //ignoring frame
+                }
 
-            lastPrediction = now;
-        }
+                try
+                {
+                    Image_RecoModelOutput prediction = await imageRecoModel.EvaluateAsync(input).ConfigureAwait(false);
+                    var classWithHighestProb = prediction.classLabel[0];
+                    if (prediction.loss[classWithHighestProb] > 0.5)
+                    {
+                        DisplayText("I see a " + classWithHighestProb);
+                    }
+                    else
+                    {
+                        DisplayText("I see nothing");
+                    }
+                }
+                catch
+                {
+                   //Log errors
+                }
+
+                await Task.Delay(predictEvery);
+            }
+
+        });
     }
 #endif
 
