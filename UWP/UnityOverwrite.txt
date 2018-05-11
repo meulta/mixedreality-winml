@@ -41,4 +41,5 @@ HoloML\obj\x86\Master\ilc\in\Assets\Square44x44Logo.targetsize-24_altform-unplat
 HoloML\obj\x86\Master\ilc\in\Assets\StoreLogo.png: 90BD194CA4A7CFFF3E8B8222229857FB
 HoloML\obj\x86\Master\ilc\in\Assets\Wide310x150Logo.scale-200.png: C96846A80DF667F87355569CD816192D
 HoloML\obj\x86\Master\ilc\in\Properties\Default.rd.xml: 72EB282657164E79A1C42F6240984826
+HoloML\obj\x86\Release\HoloML.csproj.CopyComplete: D41D8CD98F00B204E9800998ECF8427E
 HoloML\Properties\Default.rd.xml: 72EB282657164E79A1C42F6240984826
